@@ -130,6 +130,43 @@ env.Enum = setmetatable({}, {
     end
 })
 
+-- Create event/signal mock
+local function createEvent()
+    return setmetatable({}, {
+        __index = function(t, k)
+            if k == "Wait" or k == "wait" then
+                return function() return nil end
+            elseif k == "Connect" or k == "connect" then
+                return function(self, callback) 
+                    return setmetatable({}, {
+                        __index = function(t, k)
+                            if k == "Disconnect" then
+                                return function() end
+                            end
+                            return nil
+                        end
+                    })
+                end
+            end
+            return createEvent()
+        end
+    })
+end
+
+-- Create generic proxy that returns events/mocks
+local function createGenericProxy(name)
+    return setmetatable({__name = name}, {
+        __index = function(t, k)
+            -- Return an event-like object
+            return createEvent()
+        end,
+        __newindex = function(t, k, v)
+            -- Silently ignore
+        end,
+        __tostring = function() return name end
+    })
+end
+
 -- Game/Services
 local services = {}
 env.game = setmetatable({}, {
@@ -137,15 +174,7 @@ env.game = setmetatable({}, {
         if k == "GetService" then
             return function(self, name)
                 if not services[name] then
-                    services[name] = setmetatable({__serviceName = name}, {
-                        __index = function(st, sk)
-                            return setmetatable({}, {
-                                __index = function() return nil end,
-                                __tostring = function() return 'game:GetService("' .. name .. '").' .. sk end
-                            })
-                        end,
-                        __tostring = function() return 'game:GetService("' .. name .. '")' end
-                    })
+                    services[name] = createGenericProxy('game:GetService("' .. name .. '")')
                 end
                 return services[name]
             end
@@ -156,20 +185,14 @@ env.game = setmetatable({}, {
                 return ""
             end
         end
-        return nil
+        -- Return event for other accesses
+        return createEvent()
     end,
     __tostring = function() return "game" end
 })
 
-env.workspace = setmetatable({}, {
-    __index = function(t, k) return nil end,
-    __tostring = function() return "workspace" end
-})
-
-env.script = setmetatable({}, {
-    __index = function(t, k) return nil end,
-    __tostring = function() return "script" end
-})
+env.workspace = createGenericProxy("workspace")
+env.script = createGenericProxy("script")
 
 -- HTTP
 env.HttpGet = function(url)
