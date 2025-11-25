@@ -83,9 +83,9 @@ async def on_message(message):
             elif os.path.exists("lune"):
                 lune_exec = os.path.abspath("lune")
             
-            # Run lune with ultimate environment logger
+            # Run lune with pure code reconstructor
             # We assume we are in the root directory
-            logger_path = os.path.join("src", "env_logger_ultimate.lua")
+            logger_path = os.path.join("src", "code_reconstructor.lua")
             
             cmd = [lune_exec, "run", logger_path, tmp_path]
             print(f"Running command: {cmd}")
