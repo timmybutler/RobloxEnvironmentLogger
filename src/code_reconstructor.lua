@@ -89,24 +89,26 @@ local function createEvent()
         __index = function(t, k)
             if k == "Wait" or k == "wait" then
                 return function() return nil end
-            elseif k == "Connect" or k == "connect" then
+            elseif k == "Connect" or k == "connect" or k == "ConnectParallel" then
                 return function(self, callback) 
-                    return setmetatable({}, {
-                        __index = function(t, k)
-                            if k == "Disconnect" then
-                                return function() end
-                            end
-                            return function() end -- Return function for any access
-                        end
+                    -- Return a connection object
+                    return setmetatable({
+                        Connected = true,
+                        Disconnect = function(self) self.Connected = false end,
+                        disconnect = function(self) self.Connected = false end
+                    }, {
+                        __tostring = function() return "RBXScriptConnection" end
                     })
                 end
+            elseif k == "Fire" or k == "fire" or k == "FireServer" then
+                return function() end
             end
             return createEvent()
         end,
         __call = function(t, ...)
-            -- If the event itself is called, return nothing
             return nil
-        end
+        end,
+        __tostring = function() return "RBXScriptSignal" end
     })
 end
 
@@ -114,18 +116,10 @@ end
 local function createGenericProxy(name)
     return setmetatable({__name = name}, {
         __index = function(t, k)
-            -- Return a callable that returns an event
-            return function(...)
-                return createEvent()
-            end
+            return function(...) return createEvent() end
         end,
-        __newindex = function(t, k, v)
-            -- Silently ignore
-        end,
-        __call = function(t, ...)
-            -- If the proxy itself is called, return event
-            return createEvent()
-        end,
+        __newindex = function(t, k, v) end,
+        __call = function(t, ...) return createEvent() end,
         __tostring = function() return name end
     })
 end
@@ -136,6 +130,7 @@ local function createMockInstance(className, varName)
         __className = className,
         __varName = varName,
         Name = className,
+        Parent = nil
     }
     
     return setmetatable(mock, {
@@ -145,26 +140,20 @@ local function createMockInstance(className, varName)
                 return function(self, childName)
                     return createMockInstance(childName or "Child", childName or "Child")
                 end
+            elseif k == "GetChildren" or k == "GetDescendants" then
+                return function() return {} end
             elseif k == "GetPropertyChangedSignal" then
-                return function(self, propName)
-                    return createEvent()
-                end
-            elseif k == "Destroy" then
+                return function(self, propName) return createEvent() end
+            elseif k == "Destroy" or k == "destroy" then
                 return function() end
-            elseif k == "Clone" then
+            elseif k == "Clone" or k == "clone" then
                 return function() return createMockInstance(className, varName .. "_Clone") end
             elseif k == "Connect" then
                 return function(self, callback) return createEvent() end
+            elseif k == "IsA" then
+                return function(self, typeName) return typeName == className end
             -- Common events
-            elseif k == "MouseButton1Click" or k == "MouseButton1Down" or k == "MouseButton1Up" then
-                return createEvent()
-            elseif k == "InputBegan" or k == "InputChanged" or k == "InputEnded" then
-                return createEvent()
-            elseif k == "Changed" or k == "ChildAdded" or k == "ChildRemoved" then
-                return createEvent()
-            elseif k == "Heartbeat" or k == "RenderStepped" or k == "Stepped" then
-                return createEvent()
-            elseif k == "CharacterAdded" or k == "PlayerAdded" or k == "PlayerRemoving" then
+            elseif k:match("Click") or k:match("Input") or k:match("Changed") or k:match("beat") or k:match("Added") or k:match("Removing") or k:match("Enter") or k:match("Leave") then
                 return createEvent()
             -- Return event for unknown properties
             else
@@ -178,8 +167,18 @@ local function createMockInstance(className, varName)
                 valueStr = '"' .. v .. '"'
             elseif type(v) == "number" or type(v) == "boolean" then
                 valueStr = tostring(v)
-            elseif type(v) == "table" and v.__varName then
-                valueStr = v.__varName
+            elseif type(v) == "table" then
+                if v.__varName then
+                    valueStr = v.__varName
+                else
+                    -- Check for __tostring metamethod
+                    local mt = getmetatable(v)
+                    if mt and mt.__tostring then
+                        valueStr = tostring(v)
+                    else
+                        valueStr = "table"
+                    end
+                end
             else
                 valueStr = tostring(v)
             end
@@ -824,6 +823,14 @@ if success and type(result) == "function" then
 end
 
 -- Output ONLY the reconstructed code
+print("-- Reconstructed Lua Code")
+print("-- Generated by Roblox Environment Logger")
+print("-- Original file: " .. scriptPath)
+print("")
+
 for _, line in ipairs(codeLines) do
     print(line)
 end
+
+print("")
+print("-- End of reconstructed code")
