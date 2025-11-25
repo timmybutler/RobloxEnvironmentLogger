@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test*.lua
+debug*.lua
+simple*.lua
+sandbox_result.txt
+result.txt
+output.txt
+read_result.py
+
+# Logs
+*.log
+
+# Environment variables
+.env

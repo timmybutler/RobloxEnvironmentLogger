@@ -1,0 +1,33 @@
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# Test files
+test_*.lua
+debug_*.lua
+simple.lua
+sandbox_output.txt
+debug.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
