@@ -352,22 +352,38 @@ env.game = setmetatable({}, {
         if k == "GetService" then
             return function(self, name)
                 if not services[name] then
+                    -- Create service mock
                     services[name] = createMockInstance(name, 'game:GetService("' .. name .. '")')
-                    -- Special handling for Players service
+                    
+                    -- Special handling for specific services
                     if name == "Players" then
                         services[name].LocalPlayer = createMockInstance("Player", "LocalPlayer")
                         services[name].LocalPlayer.Character = createMockInstance("Character", "Character")
                         services[name].LocalPlayer.CharacterAdded = createEvent()
+                    elseif name == "TweenService" then
+                        services[name].Create = function(self, obj, info, props)
+                            addCode('TweenService:Create(...)')
+                            return setmetatable({}, {
+                                __index = {
+                                    Play = function() addCode("Tween:Play()") end,
+                                    Cancel = function() addCode("Tween:Cancel()") end,
+                                    Pause = function() addCode("Tween:Pause()") end
+                                }
+                            })
+                        end
+                    elseif name == "TeleportService" then
+                        services[name].Teleport = function(self, placeId) addCode("TeleportService:Teleport(" .. placeId .. ")") end
+                        services[name].TeleportToPlaceInstance = function(self, placeId, instanceId) addCode("TeleportService:TeleportToPlaceInstance(...)") end
+                    elseif name == "MarketplaceService" then
+                        services[name].PromptGamePassPurchase = function() addCode("MarketplaceService:PromptGamePassPurchase(...)") end
+                        services[name].PromptProductPurchase = function() addCode("MarketplaceService:PromptProductPurchase(...)") end
                     end
                 end
                 return services[name]
             end
         end
         if k == "HttpGet" or k == "HttpGetAsync" then
-            return function(self, url)
-                addCode('game:HttpGet("' .. url .. '")')
-                return ""
-            end
+            return env.HttpGet
         end
         -- Return event for other accesses
         return createEvent()
@@ -378,11 +394,34 @@ env.game = setmetatable({}, {
 env.workspace = createMockInstance("Workspace", "workspace")
 env.script = createMockInstance("Script", "script")
 
--- HTTP
-env.HttpGet = function(url)
-    addCode('HttpGet("' .. url .. '")')
-    return ""
+-- HTTP Mock Response
+local function createMockResponse(body)
+    return {
+        Body = body or "Mock Response",
+        StatusCode = 200,
+        StatusMessage = "OK",
+        Headers = {["Content-Type"] = "application/json"},
+        Success = true
+    }
 end
+
+-- HTTP Functions
+env.HttpGet = function(url)
+    addCode('HttpGet("' .. tostring(url) .. '")')
+    return "Mock Response"
+end
+
+env.HttpGetAsync = env.HttpGet
+
+env.request = function(options)
+    local url = type(options) == "table" and options.Url or tostring(options)
+    local method = type(options) == "table" and options.Method or "GET"
+    addCode('request({Url = "' .. url .. '", Method = "' .. method .. '"})')
+    return createMockResponse()
+end
+
+env.http_request = env.request
+env.syn = { request = env.request }
 
 -- File operations
 env.writefile = function(filename, content)
@@ -394,17 +433,41 @@ env.readfile = function(filename)
     return ""
 end
 
+env.isfile = function(filename) return true end
+env.delfile = function(filename) addCode('delfile("' .. filename .. '")') end
+env.listfiles = function(folder) return {} end
+env.makefolder = function(folder) addCode('makefolder("' .. folder .. '")') end
+env.delfolder = function(folder) addCode('delfolder("' .. folder .. '")') end
+
 -- Loadstring
 env.loadstring = function(code)
     addCode("loadstring([code])")
     return function() end
 end
 
--- Clipboard
+-- Exploit Environment
+env.getgenv = function() return env end
+env.getrenv = function() return env end
+env.getreg = function() return {} end
+env.getgc = function() return {} end
+env.getinstances = function() return {} end
+env.getnilinstances = function() return {} end
+env.getloadedmodules = function() return {} end
+env.getconnections = function() return {} end
+env.firesignal = function(signal, ...) addCode("firesignal(...)") end
+env.fireclickdetector = function(part) addCode("fireclickdetector(" .. tostring(part) .. ")") end
+env.firetouchinterest = function(part) addCode("firetouchinterest(" .. tostring(part) .. ")") end
+env.fireproximityprompt = function(prompt) addCode("fireproximityprompt(" .. tostring(prompt) .. ")") end
+env.setreadonly = function(t, val) end
+env.isreadonly = function(t) return false end
 env.setclipboard = function(text)
     local preview = tostring(text):sub(1, 50)
     addCode('setclipboard("' .. preview .. '")')
 end
+
+env.checkcaller = function() return true end
+env.newcclosure = function(f) return f end
+env.clonefunction = function(f) return f end
 
 -- Exploit functions
 env.hookfunction = function(original, hook)
