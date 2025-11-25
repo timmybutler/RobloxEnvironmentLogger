@@ -223,80 +223,108 @@ env.Instance = {
 -- Math types
 env.Vector3 = {
     new = function(x, y, z)
-        return {__tostring = function() return string.format("Vector3.new(%g, %g, %g)", x or 0, y or 0, z or 0) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("Vector3.new(%g, %g, %g)", x or 0, y or 0, z or 0) end
+        })
     end
 }
 
 env.Color3 = {
     fromRGB = function(r, g, b)
-        return {__tostring = function() return string.format("Color3.fromRGB(%d, %d, %d)", r, g, b) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("Color3.fromRGB(%d, %d, %d)", r, g, b) end
+        })
     end,
     new = function(r, g, b)
-        return {__tostring = function() return string.format("Color3.new(%g, %g, %g)", r, g, b) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("Color3.new(%g, %g, %g)", r, g, b) end
+        })
     end,
     fromHSV = function(h, s, v)
-        return {__tostring = function() return string.format("Color3.fromHSV(%g, %g, %g)", h, s, v) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("Color3.fromHSV(%g, %g, %g)", h, s, v) end
+        })
     end
 }
 
 env.UDim = {
     new = function(s, o)
-        return {__tostring = function() return string.format("UDim.new(%g, %g)", s, o) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("UDim.new(%g, %g)", s, o) end
+        })
     end
 }
 
 env.UDim2 = {
     new = function(xs, xo, ys, yo)
-        return {__tostring = function() return string.format("UDim2.new(%g, %g, %g, %g)", xs, xo, ys, yo) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("UDim2.new(%g, %g, %g, %g)", xs, xo, ys, yo) end
+        })
     end
 }
 
 env.Vector2 = {
     new = function(x, y)
-        return {__tostring = function() return string.format("Vector2.new(%g, %g)", x, y) end}
+        return setmetatable({}, {
+            __tostring = function() return string.format("Vector2.new(%g, %g)", x, y) end
+        })
     end
 }
 
 env.BrickColor = {
     new = function(name)
-        return {__tostring = function() return 'BrickColor.new("' .. name .. '")' end}
+        return setmetatable({}, {
+            __tostring = function() return 'BrickColor.new("' .. name .. '")' end
+        })
     end
 }
 
 env.NumberRange = {
     new = function(...)
         local args = {...}
-        return {__tostring = function() return "NumberRange.new(" .. table.concat(args, ", ") .. ")" end}
+        return setmetatable({}, {
+            __tostring = function() return "NumberRange.new(" .. table.concat(args, ", ") .. ")" end
+        })
     end
 }
 
 env.NumberSequence = {
     new = function(...)
-        return {__tostring = function() return "NumberSequence.new(...)" end}
+        return setmetatable({}, {
+            __tostring = function() return "NumberSequence.new(...)" end
+        })
     end
 }
 
 env.NumberSequenceKeypoint = {
     new = function(...)
-        return {__tostring = function() return "NumberSequenceKeypoint.new(...)" end}
+        return setmetatable({}, {
+            __tostring = function() return "NumberSequenceKeypoint.new(...)" end
+        })
     end
 }
 
 env.ColorSequence = {
     new = function(...)
-        return {__tostring = function() return "ColorSequence.new(...)" end}
+        return setmetatable({}, {
+            __tostring = function() return "ColorSequence.new(...)" end
+        })
     end
 }
 
 env.ColorSequenceKeypoint = {
     new = function(...)
-        return {__tostring = function() return "ColorSequenceKeypoint.new(...)" end}
+        return setmetatable({}, {
+            __tostring = function() return "ColorSequenceKeypoint.new(...)" end
+        })
     end
 }
 
 env.TweenInfo = {
     new = function(...)
-        return {__tostring = function() return "TweenInfo.new(...)" end}
+        return setmetatable({}, {
+            __tostring = function() return "TweenInfo.new(...)" end
+        })
     end
 }
 

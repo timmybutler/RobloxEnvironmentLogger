@@ -223,9 +223,9 @@ async def on_message(message):
             elif os.path.exists("lune"):
                 lune_exec = os.path.abspath("lune")
             
-            # Run lune with advanced code reconstructor
+            # Run lune with code reconstructor
             # We assume we are in the root directory
-            logger_path = os.path.join("src", "code_reconstructor_advanced.lua")
+            logger_path = os.path.join("src", "code_reconstructor.lua")
             
             # Build command with settings as arguments
             cmd = [lune_exec, "run", logger_path, tmp_path]
