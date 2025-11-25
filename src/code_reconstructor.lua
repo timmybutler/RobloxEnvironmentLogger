@@ -11,12 +11,43 @@ end
 
 local scriptContent = fs.readFile(scriptPath)
 
+-- Read settings from environment variables
+local settings = {
+    hookOp = process.env.SETTING_HOOKOP == "1",
+    explore_funcs = process.env.SETTING_EXPLORE_FUNCS == "1",
+    spyexeconly = process.env.SETTING_SPYEXECONLY == "1",
+    no_string_limit = process.env.SETTING_NO_STRING_LIMIT == "1",
+    minifier = process.env.SETTING_MINIFIER == "1",
+    comments = process.env.SETTING_COMMENTS == "1",
+    ui_detection = process.env.SETTING_UI_DETECTION == "1",
+    notify_scamblox = process.env.SETTING_NOTIFY_SCAMBLOX == "1",
+    constant_collection = process.env.SETTING_CONSTANT_COLLECTION == "1",
+    duplicate_searcher = process.env.SETTING_DUPLICATE_SEARCHER == "1",
+    neverNester = process.env.SETTING_NEVERNESTER == "1"
+}
+
 -- Code reconstruction buffer
 local codeLines = {}
+
+-- String truncation helper
+local function truncateString(str, maxLen)
+    if settings.no_string_limit or #str <= maxLen then
+        return str
+    end
+    local remaining = #str - maxLen
+    return str:sub(1, maxLen) .. "...(" .. remaining .. " bytes left)"
+end
 
 -- Simple logging that only captures executable code
 local function addCode(code)
     table.insert(codeLines, code)
+end
+
+-- Add comment helper
+local function addComment(comment)
+    if settings.comments then
+        table.insert(codeLines, "-- " .. comment)
+    end
 end
 
 -- Minimal environment
@@ -27,7 +58,7 @@ env.print = function(...)
     local strs = {}
     for i, v in ipairs(args) do
         if type(v) == "string" then
-            strs[i] = '"' .. tostring(v) .. '"'
+            strs[i] = '"' .. truncateString(tostring(v), 256) .. '"'
         else
             strs[i] = tostring(v)
         end
@@ -40,7 +71,7 @@ env.warn = function(...)
     local strs = {}
     for i, v in ipairs(args) do
         if type(v) == "string" then
-            strs[i] = '"' .. tostring(v) .. '"'
+            strs[i] = '"' .. truncateString(tostring(v), 256) .. '"'
         else
             strs[i] = tostring(v)
         end
