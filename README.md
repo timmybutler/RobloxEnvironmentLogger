@@ -10,24 +10,6 @@ All VM interception techniques, sandbox methods, and exploit detection strategie
 ### Comprehensive Logging
 - ✅ **100% Operation Coverage**: Every function call, property access, assignment
 - ✅ **Complete Execution Trace**: Sequential code reconstruction  
-- ✅ **Smart Variable Tracking**: v1, v2, v3... naming with full relationships
-- ✅ **Exploit Function Detection**: Tracks loadstring, HTTP, file operations, etc.
-
-### Maximum Security
-- 🔒 **ZERO File System Access**: No reading/writing files
-- 🔒 **ZERO Network Access**: No HTTP requests, all blocked
-- �� **ZERO System Access**: No command execution
-- 🔒 **Complete Isolation**: Sandboxed execution
-- 🔒 **Output Sanitization**: No path/token leakage
-
-### Production Ready
-- 🚀 **Render.com Optimized**: Safe for cloud deployment
-- 🚀 **Discord Bot Integration**: Easy !log command
-- 🚀 **Docker Support**: One-click deployment
-- 🚀 **No Dependencies**: Self-contained sandbox
-
-## 📊 What It Does
-
 ### Input: Any Roblox Script
 ```lua
 local code = game:HttpGet("https://pastebin.com/raw/xyz")
@@ -246,6 +228,33 @@ This is a security-focused project. Please report any security concerns privatel
 ## ⚠️ Disclaimer
 
 This tool is for educational and security research purposes. Always analyze scripts responsibly and ethically.
+
+---
+
+## ⚙️ Settings & Customization
+
+The bot now supports **per-user customizable settings** with 11 different feature flags!
+
+### Quick Start
+```
+!settings
+```
+
+This opens an interactive settings panel with toggle buttons for:
+- `hookOp` - Hook operations (loops, conditionals, comparisons)
+- `explore_funcs` - Show full function bodies vs placeholders
+- `spyexeconly` - Only track executor-specific variables
+- `no_string_limit` - Disable string truncation
+- `minifier` - Minify and inline output
+- `comments` - Show helpful execution comments
+- `ui_detection` - Detect UI libraries [EXPERIMENTAL]
+- `notify_scamblox` - Notify on scam detection (Premium)
+- `constant_collection` - Extract all string constants
+- `duplicate_searcher` - Check for previously analyzed scripts
+- `neverNester` - Convert nested ifs to early-exit pattern
+
+### Full Documentation
+See **[SETTINGS_GUIDE.md](SETTINGS_GUIDE.md)** for complete details on each setting, use cases, and examples.
 
 ---
 
