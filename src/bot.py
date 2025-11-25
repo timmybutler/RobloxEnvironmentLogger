@@ -223,9 +223,9 @@ async def on_message(message):
             elif os.path.exists("lune"):
                 lune_exec = os.path.abspath("lune")
             
-            # Run lune with pure code reconstructor
+            # Run lune with advanced code reconstructor
             # We assume we are in the root directory
-            logger_path = os.path.join("src", "code_reconstructor.lua")
+            logger_path = os.path.join("src", "code_reconstructor_advanced.lua")
             
             # Build command with settings as arguments
             cmd = [lune_exec, "run", logger_path, tmp_path]
@@ -238,7 +238,7 @@ async def on_message(message):
             print(f"Running command: {cmd}")
             print(f"Settings: {user_settings}")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, env=env)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
             
             os.remove(tmp_path)
             
@@ -249,16 +249,13 @@ async def on_message(message):
             if not output:
                 output = "-- No output --"
 
-            if len(output) > 1900:
-                # Send as file
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as log_file:
-                    log_file.write(output)
-                    log_file_path = log_file.name
-                
-                await message.channel.send("Log output:", file=discord.File(log_file_path, "log.txt"))
-                os.remove(log_file_path)
-            else:
-                await message.channel.send(f"```lua\n{output}\n```")
+            # Always send as .lua file for valid Lua code
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.lua', delete=False, encoding='utf-8') as log_file:
+                log_file.write(output)
+                log_file_path = log_file.name
+            
+            await message.channel.send("✅ Reconstructed code (executable Lua):", file=discord.File(log_file_path, "reconstructed.lua"))
+            os.remove(log_file_path)
 
         except subprocess.TimeoutExpired:
             await message.channel.send("Execution timed out (10s limit).")
