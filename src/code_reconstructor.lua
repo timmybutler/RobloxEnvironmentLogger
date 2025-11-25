@@ -48,6 +48,126 @@ env.warn = function(...)
     addCode("warn(" .. table.concat(strs, ", ") .. ")")
 end
 
+-- ═══════════════════════════════════════════════════════════════
+-- HELPER FUNCTIONS - Must be defined before use
+-- ═══════════════════════════════════════════════════════════════
+
+-- Create event/signal mock
+local function createEvent()
+    return setmetatable({}, {
+        __index = function(t, k)
+            if k == "Wait" or k == "wait" then
+                return function() return nil end
+            elseif k == "Connect" or k == "connect" then
+                return function(self, callback) 
+                    return setmetatable({}, {
+                        __index = function(t, k)
+                            if k == "Disconnect" then
+                                return function() end
+                            end
+                            return function() end -- Return function for any access
+                        end
+                    })
+                end
+            end
+            return createEvent()
+        end,
+        __call = function(t, ...)
+            -- If the event itself is called, return nothing
+            return nil
+        end
+    })
+end
+
+-- Create generic proxy that returns events/mocks
+local function createGenericProxy(name)
+    return setmetatable({__name = name}, {
+        __index = function(t, k)
+            -- Return a callable that returns an event
+            return function(...)
+                return createEvent()
+            end
+        end,
+        __newindex = function(t, k, v)
+            -- Silently ignore
+        end,
+        __call = function(t, ...)
+            -- If the proxy itself is called, return event
+            return createEvent()
+        end,
+        __tostring = function() return name end
+    })
+end
+
+-- Create mock instance with common Roblox methods
+local function createMockInstance(className, varName)
+    local mock = {
+        __className = className,
+        __varName = varName,
+        Name = className,
+    }
+    
+    return setmetatable(mock, {
+        __index = function(t, k)
+            -- Common methods that return mocks
+            if k == "WaitForChild" or k == "FindFirstChild" or k == "FindFirstChildOfClass" then
+                return function(self, childName)
+                    return createMockInstance(childName or "Child", childName or "Child")
+                end
+            elseif k == "GetPropertyChangedSignal" then
+                return function(self, propName)
+                    return createEvent()
+                end
+            elseif k == "Destroy" then
+                return function() end
+            elseif k == "Clone" then
+                return function() return createMockInstance(className, varName .. "_Clone") end
+            elseif k == "Connect" then
+                return function(self, callback) return createEvent() end
+            -- Common events
+            elseif k == "MouseButton1Click" or k == "MouseButton1Down" or k == "MouseButton1Up" then
+                return createEvent()
+            elseif k == "InputBegan" or k == "InputChanged" or k == "InputEnded" then
+                return createEvent()
+            elseif k == "Changed" or k == "ChildAdded" or k == "ChildRemoved" then
+                return createEvent()
+            elseif k == "Heartbeat" or k == "RenderStepped" or k == "Stepped" then
+                return createEvent()
+            elseif k == "CharacterAdded" or k == "PlayerAdded" or k == "PlayerRemoving" then
+                return createEvent()
+            -- Return event for unknown properties
+            else
+                return createEvent()
+            end
+        end,
+        __newindex = function(t, k, v)
+            -- Log property assignment as code
+            local valueStr
+            if type(v) == "string" then
+                valueStr = '"' .. v .. '"'
+            elseif type(v) == "number" or type(v) == "boolean" then
+                valueStr = tostring(v)
+            elseif type(v) == "table" and v.__varName then
+                valueStr = v.__varName
+            else
+                valueStr = tostring(v)
+            end
+            addCode(varName .. "." .. k .. " = " .. valueStr)
+        end,
+        __call = function(t, ...)
+            -- If instance is called directly, return event
+            return createEvent()
+        end,
+        __tostring = function()
+            return varName
+        end
+    })
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- INSTANCE TRACKING
+-- ═══════════════════════════════════════════════════════════════
+
 -- Instance tracking
 local instanceCounter = 0
 local instances = {}
@@ -64,28 +184,8 @@ env.Instance = {
             addCode("local " .. varName .. ' = Instance.new("' .. className .. '")')
         end
         
-        -- Return proxy for property tracking
-        return setmetatable({__varName = varName}, {
-            __index = function(t, k)
-                return nil
-            end,
-            __newindex = function(t, k, v)
-                local valueStr
-                if type(v) == "string" then
-                    valueStr = '"' .. v .. '"'
-                elseif type(v) == "number" or type(v) == "boolean" then
-                    valueStr = tostring(v)
-                elseif type(v) == "table" and v.__varName then
-                    valueStr = v.__varName
-                else
-                    valueStr = tostring(v)
-                end
-                addCode(varName .. "." .. k .. " = " .. valueStr)
-            end,
-            __tostring = function()
-                return varName
-            end
-        })
+        -- Return mock instance with full method support
+        return createMockInstance(className, varName)
     end
 }
 
@@ -102,6 +202,15 @@ env.Color3 = {
     end,
     new = function(r, g, b)
         return {__tostring = function() return string.format("Color3.new(%g, %g, %g)", r, g, b) end}
+    end,
+    fromHSV = function(h, s, v)
+        return {__tostring = function() return string.format("Color3.fromHSV(%g, %g, %g)", h, s, v) end}
+    end
+}
+
+env.UDim = {
+    new = function(s, o)
+        return {__tostring = function() return string.format("UDim.new(%g, %g)", s, o) end}
     end
 }
 
@@ -111,11 +220,59 @@ env.UDim2 = {
     end
 }
 
+env.Vector2 = {
+    new = function(x, y)
+        return {__tostring = function() return string.format("Vector2.new(%g, %g)", x, y) end}
+    end
+}
+
 env.BrickColor = {
     new = function(name)
         return {__tostring = function() return 'BrickColor.new("' .. name .. '")' end}
     end
 }
+
+env.NumberRange = {
+    new = function(...)
+        local args = {...}
+        return {__tostring = function() return "NumberRange.new(" .. table.concat(args, ", ") .. ")" end}
+    end
+}
+
+env.NumberSequence = {
+    new = function(...)
+        return {__tostring = function() return "NumberSequence.new(...)" end}
+    end
+}
+
+env.NumberSequenceKeypoint = {
+    new = function(...)
+        return {__tostring = function() return "NumberSequenceKeypoint.new(...)" end}
+    end
+}
+
+env.ColorSequence = {
+    new = function(...)
+        return {__tostring = function() return "ColorSequence.new(...)" end}
+    end
+}
+
+env.ColorSequenceKeypoint = {
+    new = function(...)
+        return {__tostring = function() return "ColorSequenceKeypoint.new(...)" end}
+    end
+}
+
+env.TweenInfo = {
+    new = function(...)
+        return {__tostring = function() return "TweenInfo.new(...)" end}
+    end
+}
+
+env.tick = function() return os.clock() end
+env.wait = function(t) return 0 end
+env.delay = function(t, f) return 0 end
+env.spawn = function(f) f() end
 
 -- Enum
 env.Enum = setmetatable({}, {
@@ -130,43 +287,6 @@ env.Enum = setmetatable({}, {
     end
 })
 
--- Create event/signal mock
-local function createEvent()
-    return setmetatable({}, {
-        __index = function(t, k)
-            if k == "Wait" or k == "wait" then
-                return function() return nil end
-            elseif k == "Connect" or k == "connect" then
-                return function(self, callback) 
-                    return setmetatable({}, {
-                        __index = function(t, k)
-                            if k == "Disconnect" then
-                                return function() end
-                            end
-                            return nil
-                        end
-                    })
-                end
-            end
-            return createEvent()
-        end
-    })
-end
-
--- Create generic proxy that returns events/mocks
-local function createGenericProxy(name)
-    return setmetatable({__name = name}, {
-        __index = function(t, k)
-            -- Return an event-like object
-            return createEvent()
-        end,
-        __newindex = function(t, k, v)
-            -- Silently ignore
-        end,
-        __tostring = function() return name end
-    })
-end
-
 -- Game/Services
 local services = {}
 env.game = setmetatable({}, {
@@ -174,7 +294,13 @@ env.game = setmetatable({}, {
         if k == "GetService" then
             return function(self, name)
                 if not services[name] then
-                    services[name] = createGenericProxy('game:GetService("' .. name .. '")')
+                    services[name] = createMockInstance(name, 'game:GetService("' .. name .. '")')
+                    -- Special handling for Players service
+                    if name == "Players" then
+                        services[name].LocalPlayer = createMockInstance("Player", "LocalPlayer")
+                        services[name].LocalPlayer.Character = createMockInstance("Character", "Character")
+                        services[name].LocalPlayer.CharacterAdded = createEvent()
+                    end
                 end
                 return services[name]
             end
@@ -191,8 +317,8 @@ env.game = setmetatable({}, {
     __tostring = function() return "game" end
 })
 
-env.workspace = createGenericProxy("workspace")
-env.script = createGenericProxy("script")
+env.workspace = createMockInstance("Workspace", "workspace")
+env.script = createMockInstance("Script", "script")
 
 -- HTTP
 env.HttpGet = function(url)
