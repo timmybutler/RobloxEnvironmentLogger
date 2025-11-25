@@ -757,9 +757,10 @@ env.pcall = function(func, ...)
     local results = {original_pcall(func, ...)}
     local success = results[1]
     
-    if settings.comments then
-        addComment("pcall " .. (success and "succeeded" or "failed"))
-    end
+    -- Disabled: too noisy
+    -- if settings.comments then
+    --     addComment("pcall " .. (success and "succeeded" or "failed"))
+    -- end
     
     return unpack(results)
 end
@@ -769,9 +770,10 @@ env.xpcall = function(func, errorHandler, ...)
     local results = {original_xpcall(func, errorHandler, ...)}
     local success = results[1]
     
-    if settings.comments then
-        addComment("xpcall " .. (success and "succeeded" or "failed"))
-    end
+    -- Disabled: too noisy
+    -- if settings.comments then
+    --     addComment("xpcall " .. (success and "succeeded" or "failed"))
+    -- end
     
     return unpack(results)
 end
