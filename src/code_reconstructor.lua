@@ -458,6 +458,113 @@ env.os = os
 env.bit32 = bit32
 env.utf8 = utf8
 
+-- ═══════════════════════════════════════════════════════════════
+-- HOOKOP - OPERATION TRACKING
+-- ═══════════════════════════════════════════════════════════════
+
+if settings.hookOp then
+    -- Track comparisons and operations
+    local operationCount = 0
+    
+    -- Create tracked number type for arithmetic operations
+    local function createTrackedNumber(value)
+        return setmetatable({__value = value}, {
+            __add = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " + " .. bv .. " = " .. (av + bv))
+                end
+                return createTrackedNumber(av + bv)
+            end,
+            __sub = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " - " .. bv .. " = " .. (av - bv))
+                end
+                return createTrackedNumber(av - bv)
+            end,
+            __mul = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " * " .. bv .. " = " .. (av * bv))
+                end
+                return createTrackedNumber(av * bv)
+            end,
+            __div = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " / " .. bv .. " = " .. (av / bv))
+                end
+                return createTrackedNumber(av / bv)
+            end,
+            __mod = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " % " .. bv .. " = " .. (av % bv))
+                end
+                return createTrackedNumber(av % bv)
+            end,
+            __pow = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                if settings.comments then
+                    addComment("Operation: " .. av .. " ^ " .. bv .. " = " .. (av ^ bv))
+                end
+                return createTrackedNumber(av ^ bv)
+            end,
+            __unm = function(a)
+                local av = type(a) == "table" and a.__value or a
+                if settings.comments then
+                    addComment("Operation: -" .. av .. " = " .. (-av))
+                end
+                return createTrackedNumber(-av)
+            end,
+            __eq = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                local result = av == bv
+                addComment("Comparison: " .. av .. " == " .. bv .. " -> " .. tostring(result))
+                return result
+            end,
+            __lt = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                local result = av < bv
+                addComment("Comparison: " .. av .. " < " .. bv .. " -> " .. tostring(result))
+                return result
+            end,
+            __le = function(a, b)
+                local av = type(a) == "table" and a.__value or a
+                local bv = type(b) == "table" and b.__value or b
+                local result = av <= bv
+                addComment("Comparison: " .. av .. " <= " .. bv .. " -> " .. tostring(result))
+                return result
+            end,
+            __tostring = function(self)
+                return tostring(self.__value)
+            end,
+            __tonumber = function(self)
+                return self.__value
+            end
+        })
+    end
+    
+    -- Enhance tonumber to return tracked numbers
+    local original_tonumber = env.tonumber
+    env.tonumber = function(...)
+        local result = original_tonumber(...)
+        if result and settings.hookOp then
+            return createTrackedNumber(result)
+        end
+        return result
+    end
+end
+
 -- Environment
 env._G = env
 env.shared = {}
@@ -478,6 +585,200 @@ if not chunk then
     print("-- Error: " .. tostring(err))
     process.exit(1)
 end
+
+-- ═══════════════════════════════════════════════════════════════
+-- ADVANCED FUNCTION RECONSTRUCTION
+-- ═══════════════════════════════════════════════════════════════
+
+local functionCounter = 0
+local trackedFunctions = {}
+
+-- Smart value serializer for reconstruction
+local function serializeValue(value, depth)
+    depth = depth or 0
+    if depth > 3 then return "..." end
+    
+    local valueType = type(value)
+    
+    if valueType == "nil" then
+        return "nil"
+    elseif valueType == "boolean" then
+        return tostring(value)
+    elseif valueType == "number" then
+        return tostring(value)
+    elseif valueType == "string" then
+        return '"' .. truncateString(value:gsub('"', '\\"'), 256) .. '"'
+    elseif valueType == "table" then
+        -- Check for special types
+        if value.__varName then
+            return value.__varName
+        elseif value.__className then
+            return value.__className
+        elseif value.__tostring then
+            return tostring(value)
+        else
+            -- Try to serialize table
+            local parts = {}
+            local count = 0
+            for k, v in pairs(value) do
+                count = count + 1
+                if count > 5 then
+                    table.insert(parts, "...")
+                    break
+                end
+                if type(k) == "string" and k:match("^[%a_][%w_]*$") then
+                    table.insert(parts, k .. " = " .. serializeValue(v, depth + 1))
+                else
+                    table.insert(parts, "[" .. serializeValue(k, depth + 1) .. "] = " .. serializeValue(v, depth + 1))
+                end
+            end
+            return "{" .. table.concat(parts, ", ") .. "}"
+        end
+    elseif valueType == "function" then
+        if trackedFunctions[value] then
+            return trackedFunctions[value].name
+        else
+            return "function() end"
+        end
+    else
+        return tostring(value)
+    end
+end
+
+-- Extract function parameters using debug info (if available) or fallback
+local function getFunctionParams(func)
+    -- Try debug.getinfo if available
+    local hasDebug, debugInfo = pcall(debug.getinfo, func, "u")
+    if hasDebug and debugInfo then
+        local paramCount = debugInfo.nparams or 0
+        local params = {}
+        for i = 1, paramCount do
+            params[i] = "arg" .. i
+        end
+        if debugInfo.isvararg then
+            table.insert(params, "...")
+        end
+        return params
+    end
+    
+    -- Fallback: assume common patterns
+    return {"..."}
+end
+
+-- Wrap function to track calls and reconstruct
+local function wrapFunction(func, funcName, params)
+    if not settings.explore_funcs then
+        -- Return placeholder
+        return function(...)
+            addComment("Function " .. funcName .. " called (explore_funcs disabled)")
+            return nil
+        end
+    end
+    
+    trackedFunctions[func] = {
+        name = funcName,
+        params = params,
+        calls = 0
+    }
+    
+    return function(...)
+        local args = {...}
+        trackedFunctions[func].calls = trackedFunctions[func].calls + 1
+        
+        -- Log function call
+        local argStrs = {}
+        for i, arg in ipairs(args) do
+            argStrs[i] = serializeValue(arg)
+        end
+        
+        local callStr = funcName .. "(" .. table.concat(argStrs, ", ") .. ")"
+        
+        if settings.comments then
+            addComment("Function call: " .. callStr)
+        end
+        
+        -- Execute original function in controlled environment
+        local results = {pcall(func, ...)}
+        local success = table.remove(results, 1)
+        
+        if success then
+            if settings.comments and #results > 0 then
+                addComment("Returned: " .. serializeValue(results[1]))
+            end
+            return unpack(results)
+        else
+            if settings.comments then
+                addComment("Function errored: " .. tostring(results[1]))
+            end
+            return nil
+        end
+    end
+end
+
+-- Track function definitions through setfenv wrapping
+local function trackFunctionDefinition(func, name)
+    functionCounter = functionCounter + 1
+    local funcName = name or ("func" .. functionCounter)
+    local params = getFunctionParams(func)
+    
+    -- Add function definition to reconstruction
+    if settings.explore_funcs then
+        local paramStr = table.concat(params, ", ")
+        addCode("local function " .. funcName .. "(" .. paramStr .. ")")
+        addComment("Function body execution tracked below")
+        addCode("end")
+    else
+        addCode("local function " .. funcName .. "(...) --[[enable explore_funcs to view]] end")
+    end
+    
+    return wrapFunction(func, funcName, params)
+end
+
+-- Enhanced loadstring that reconstructs the loaded code
+env.loadstring = function(code, chunkname)
+    if settings.explore_funcs then
+        addCode("-- loadstring code:")
+        addCode(truncateString(code, 1000))
+    else
+        addCode("loadstring([[" .. truncateString(code, 100) .. "]])")
+    end
+    addComment("[SECURITY] loadstring NOT executed")
+    
+    -- Return wrapped function
+    return function(...)
+        addComment("loadstring function called")
+        return nil
+    end
+end
+
+-- Track pcall/xpcall for better flow
+local original_pcall = env.pcall
+env.pcall = function(func, ...)
+    local results = {original_pcall(func, ...)}
+    local success = results[1]
+    
+    if settings.comments then
+        addComment("pcall " .. (success and "succeeded" or "failed"))
+    end
+    
+    return unpack(results)
+end
+
+local original_xpcall = env.xpcall
+env.xpcall = function(func, errorHandler, ...)
+    local results = {original_xpcall(func, errorHandler, ...)}
+    local success = results[1]
+    
+    if settings.comments then
+        addComment("xpcall " .. (success and "succeeded" or "failed"))
+    end
+    
+    return unpack(results)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- SCRIPT EXECUTION
+-- ═══════════════════════════════════════════════════════════════
 
 setfenv(chunk, env)
 local success, result = pcall(chunk)
